@@ -31,10 +31,11 @@
      (.send (:receiver sink) on-msg -1))))
 
 (def pool (mk-pool))
+
 (def output (midi-out "Boutique"))
 
 ;; --------------------------------------------------------------------------------
-
+;; player
 (defmulti trigger :type)
 
 (defmethod trigger :note [evt]
@@ -211,6 +212,8 @@
   (play tom-stroyer (* 6 bar))
   (play-looping errorize (* 3 bar))
   (play-looping #'live-example bar)
+  (play staggered (* 2 bar))
+  (play grungy bar)
   ;;
   (stop-looping)
   (stop-everything)
