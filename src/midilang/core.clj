@@ -58,10 +58,10 @@
   (let [events (sort-by :time (fn 0 duration))]
     (doall (for [evt events]
              (trigger evt))))
-  (when @=play-loop=
-    (after duration
-           #(play fn duration)
-           pool))
+  (after duration
+         #(when @=play-loop=
+            (play fn duration))
+         pool)
   nil)
 
 (defn play-looping [fn duration]
@@ -110,26 +110,28 @@
        (* dur s))))
 
 ;; post-modifier
-(defn reverse [] nil ;; TODO
+#_(defn reverse [] nil ;; TODO
   )
 
 ;; combinatory
-(defn overlay [& fns]
+(defn overlay [f & more]
   "overlay a series of events to occur at the same time."
-  (fn [t dur]
-    (flatten
-     (map #(% t dur)
-          fns))))
-
-(defn append [& fns]
-  "append a series of events to occur one after another."
-  (fn [t dur]
-    (let [dur-fraction (/ dur (count fns))]
+  (let [fns (concat (if (seq? f) f [f]) more)]
+    (fn [t dur]
       (flatten
-       (for [i (range (count fns))]
-         ((nth fns i)
-          (+ t (* i dur-fraction))
-          dur-fraction))))))
+       (map #(% t dur)
+            fns)))))
+
+(defn append [f & more]
+  "append a series of events to occur one after another."
+  (let [fns (concat (if (seq? f) f [f]) more)]
+    (fn [t dur]
+      (let [dur-fraction (/ dur (count fns))]
+        (flatten
+         (for [i (range (count fns))]
+           ((nth fns i)
+            (+ t (* i dur-fraction))
+            dur-fraction)))))))
 
 ;; --------------------------------------------------------------------------------
 ;; examples
@@ -139,29 +141,31 @@
 
 (def four-floor
   ;;(apply append (map single-note (repeat 4 36)))
-  (apply append (repeat 4 kick)))
+  (append (repeat 4 kick)))
 
 (def tztztz
   (overlay four-floor
            ;;(apply append (map single-note (repeat 16 42)))
-           (apply append (repeat 16 chat))))
+           (append (repeat 16 chat))))
 
 (def btzack
   (overlay tztztz
-           (apply append (flatten (repeat 2 [(nix) snare])))))
+           (append (flatten (repeat 2 [(nix) snare])))))
 
 (def weirdo
   (overlay four-floor
-           (apply append (repeat 3 snare))
-           (apply append (repeat 7 chat))))
+           (append (repeat 3 snare))
+           (append (repeat 7 chat))))
 
 (def note-dur-test
-  (apply append (repeat 4 (scale snare 0.001))))
+  (append (repeat 4 (scale snare 0.001))))
 
 (def weirdo-2
   (overlay four-floor
-           (scale-r (apply append (repeat 3 snare)) 1/2)
-           (apply append (repeat 2 (scale (apply append (repeat 3 chat)) 1/3)))))
+           (scale-r (append (repeat 3 snare))
+                    1/2)
+           (append (repeat 2 (scale (append (repeat 3 chat))
+                                    1/3)))))
 
 (comment
   (play four-floor 2000)
