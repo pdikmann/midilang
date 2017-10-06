@@ -2,7 +2,9 @@
   (:gen-class)
   (:require [clojure.test :refer :all]
             [midi :refer :all]
-            [overtone.at-at :refer :all])
+            [overtone.at-at :refer :all]
+            [midilang.composition :refer :all]
+            [midilang.gear :refer :all])
   (:import
    (javax.sound.midi MidiMessage ShortMessage)))
 
@@ -79,102 +81,12 @@
   (reset! =play-loop= false))
 
 (defn stop-everything []
-  (stop-loop)
+  (stop-looping)
   (stop-and-reset-pool! pool :strategy :kill)
   nil)
 
 ;; --------------------------------------------------------------------------------
-;; composition
-
-;; elementary
-(defn note-event [note]
-  (fn [t dur]
-    [{:time t
-      :type :note
-      :note-duration dur
-      :note-number note
-      :note-velocity 127}]))
-
-(defn cc-event [num val]
-  (fn [t dur]
-    [{:time t
-      :type :control-change
-      :cc-number num
-      :cc-value val}]))
-
-(defn break []
-  "currently unused / synonymous with #'nix"
-  (fn [t dur]
-    [{:time t
-      :type :break}]))
-
-(defn nix []
-  (fn [t dur]
-    []))
-
-
-;; pre-modifier
-(defn scale [f s]
-  "scale event to take S * DURATION time, aligned/starting at T."
-  (fn [t dur]
-    (f t (* dur s))))
-
-(defn scale-r [f s]
-  "scale event to take S * DURATION time, aligned/ending at DURATION."
-  (fn [t dur]
-    (f (+ t (- dur (* dur s)))
-       (* dur s))))
-
-#_(defn interleave [] ;; TODO
-    )
-
-;; post-modifier
-#_(defn reverse [] nil ;; TODO
-    )
-
-(defn volume [f vol]
-  (let [vols (if (coll? vol)
-               (cycle vol)
-               (cycle [vol]))]
-    (fn [t dur]
-      (map #(assoc %1 :note-velocity %2)
-           (f t dur)
-           vols))))
-
-;; combinatory
-(defn- collect [some rest]
-  (concat (if (coll? some)
-            some
-            [some])
-          rest))
-
-(defn overlay [f & more]
-  "overlay a series of events to occur at the same time."
-  (let [fns (collect f more)]
-    (fn [t dur]
-      (flatten
-       (map #(% t dur)
-            fns)))))
-
-(defn append [f & more]
-  "append a series of events to occur one after another."
-  (let [fns (collect f more)]
-    (fn [t dur]
-      (let [dur-fraction (/ dur (count fns))]
-        (flatten
-         (for [i (range (count fns))]
-           ((nth fns i)
-            (+ t (* i dur-fraction))
-            dur-fraction)))))))
-
-;; --------------------------------------------------------------------------------
 ;; examples
-(def kick (note-event 35))
-(def snare (note-event 38))
-(def chat (note-event 42))
-(def ltom (note-event 41))
-(def mtom (note-event 45))
-(def htom (note-event 48))
 
 (def bpm 136)
 (def beat (/ (* 60 1000) bpm))
@@ -191,7 +103,7 @@
 
 (def btzack
   (overlay tztztz
-           (append (flatten (repeat 2 [(nix) snare])))))
+           (append (flatten (repeat 2 [nix snare])))))
 
 (def weirdo
   (overlay four-floor
@@ -225,14 +137,6 @@
           [127 10]
           ))
 
-(def ltom-tune (partial cc-event 46))
-(def mtom-tune (partial cc-event 49))
-(def htom-tune (partial cc-event 52))
-(defn tom-tune [val]
-  (overlay (ltom-tune val)
-           (mtom-tune val)
-           (htom-tune val)))
-
 (def tom-tuner
   (overlay (append (ltom-tune 0)
                    (ltom-tune 40)
@@ -240,14 +144,6 @@
                    (ltom-tune 127))
            (volume (append (repeat 4 ltom))
                    127)))
-
-(def ltom-decay (partial cc-event 47))
-(def mtom-decay (partial cc-event 50))
-(def htom-decay (partial cc-event 53))
-(defn tom-decay [val]
-  (overlay (ltom-decay val)
-           (mtom-decay val)
-           (htom-decay val)))
 
 (def tom-tricks
   (overlay ;;(append (repeat 2 four-floor))
@@ -277,13 +173,27 @@
                          (stroy 128)
                          (stroy 256)))
 
-(defn live-example [t dur]
-  ((overlay (append snare snare snare snare)
-            (append mtom mtom ltom ltom htom)
-            (append (take 128 (cycle [(mtom-tune 127)
-                                      (mtom-tune 0)])))
-            tztztz)
-   t dur))
+(def errorize
+  (let [rrr (fn [count] (append (repeat count kick)))]
+    (overlay (append (repeat 12 snare))
+             (append (rrr 64)
+                     (rrr 128)
+                     (rrr 256)))))
+
+(def staggered
+  (overlay four-floor
+           (stagger (append snare snare)
+                    1/8)
+           (stagger (append chat chat chat chat)
+                    1/32)))
+
+(def grungy
+  (overlay (append (apply append (append (repeat 12 htom))
+                          (repeat 3 nix))
+                   (apply append (append (repeat 48 htom))
+                          (repeat 3 nix)))
+           (append (repeat 4 snare))
+           four-floor))
 
 (comment
   (play four-floor bar)
@@ -299,11 +209,26 @@
   (play tom-tuner bar)
   (play-looping tom-tricks (* 2 bar))
   (play tom-stroyer (* 6 bar))
+  (play-looping errorize (* 3 bar))
   (play-looping #'live-example bar)
   ;;
   (stop-looping)
   (stop-everything)
   )
 
+;; --------------------------------------------------------------------------------
+;; live
+(defn live-example [t dur]
+  ((overlay (append (apply append (append (repeat 12 htom))
+                           (repeat 3 nix))
+                    (apply append (append (repeat 48 htom))
+                           (repeat 3 nix)))
+            (append (repeat 4 snare))
+            four-floor)
+   t dur))
+
 (comment
-  (play (append (flatten (repeat 4 [(note-event 35) (note-event 36)]))) bar))
+  (play-looping #'live-example bar)
+  (stop-everything)
+  )
+
