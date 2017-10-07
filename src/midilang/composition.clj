@@ -29,6 +29,10 @@
 (def nix (no-event))
 
 ;; pre-modifier
+(defn mute [& rest]
+  (fn [t dur]
+    []))
+
 (defn scale [s f]
   "scale event to take S * DURATION time, aligned/starting at T."
   (fn [t dur]
