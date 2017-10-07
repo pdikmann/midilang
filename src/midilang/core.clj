@@ -9,7 +9,8 @@
                                            stop-looping
                                            stop-everything]]
             [midilang.composition :as c]
-            [midilang.gear :refer :all]))
+            [midilang.gear.tr09 :refer :all]
+            [midilang.gear.tb03 :refer :all]))
 
 (defn -main
   [& args]
@@ -34,106 +35,119 @@
 (def bar (* 4 beat))
 
 (def four-floor
-  ;;(apply c/append (map c/note-event (repeat 4 36)))
-  (c/append (repeat 4 kick)))
+  (tr-09
+   (c/append (repeat 4 kick))))
 
 (def tztztz
-  (c/overlay four-floor
-             ;;(apply c/append (map c/note-event (repeat 16 42)))
-             (c/append (repeat 16 chat))))
+  (tr-09
+   (c/overlay four-floor
+              (c/append (repeat 16 chat)))))
 
 (def btzack
-  (c/overlay tztztz
-             (c/append (flatten (repeat 2 [c/nix snare])))))
+  (tr-09
+   (c/overlay tztztz
+              (c/append (flatten (repeat 2 [c/nix snare]))))))
 
 (def weirdo
-  (c/overlay four-floor
-             (c/append (repeat 3 snare))
-             (c/append (repeat 7 chat))))
+  (tr-09
+   (c/overlay four-floor
+              (c/append (repeat 3 snare))
+              (c/append (repeat 7 chat)))))
 
 (def note-dur-test
-  (c/append (repeat 4 (c/scale 0.001 snare))))
+  (tr-09
+   (c/append (repeat 4 (c/scale 0.001 snare)))))
 
 (def weirdo-2
-  (c/overlay four-floor
-             (c/scale-r 1/2 (c/append (repeat 3 snare)))
-             (c/append (repeat 2 (c/scale 1/3 (c/append (repeat 3 chat)))))))
+  (tr-09
+   (c/overlay four-floor
+              (c/scale-r 1/2 (c/append (repeat 3 snare)))
+              (c/append (repeat 2 (c/scale 1/3 (c/append (repeat 3 chat))))))))
 
 (def volume-test
-  (c/append (c/volume 20 four-floor)
-            (c/volume 40 four-floor)
-            (c/volume 80 four-floor)
-            (c/volume 120 four-floor)))
+  (tr-09
+   (c/append (c/volume 20 four-floor)
+             (c/volume 40 four-floor)
+             (c/volume 80 four-floor)
+             (c/volume 120 four-floor))))
 
 (def volume-spaz
-  (c/volume [40 80 20 120 60 20 90 70]
-            (c/append (repeat 8 four-floor))))
+  (tr-09
+   (c/volume [40 80 20 120 60 20 90 70]
+             (c/append (repeat 8 four-floor)))))
 
 (def abrubtor
-  (c/volume [127 10]
-            ;;[127 10 127 10 127 127]
-            (c/append (repeat 2 (c/scale (c/append kick kick) 1/2))
-                      kick kick)))
+  (tr-09
+   (c/volume [127 10]
+             ;;[127 10 127 10 127 127]
+             (c/append (repeat 2 (c/scale (c/append kick kick) 1/2))
+                       kick kick))))
 
 (def tom-tuner
-  (c/overlay (c/append (lt-tune 0)
-                       (lt-tune 40)
-                       (lt-tune 80)
-                       (lt-tune 127))
-             (c/volume 127 (c/append (repeat 4 ltom)))))
+  (tr-09
+   (c/overlay (c/append (lt-tune 0)
+                        (lt-tune 40)
+                        (lt-tune 80)
+                        (lt-tune 127))
+              (c/volume 127 (c/append (repeat 4 ltom))))))
 
 (def tom-tricks
-  (c/overlay ;;(c/append (repeat 2 four-floor))
-   (c/append (take 16 (cycle [ltom mtom htom mtom])))
-   (c/append (map tom-decay
-                  (map (partial + 15)
-                       (reverse (range 0 127 16)) ; 8 values
-                       )))
-   (c/append (map tom-tune
-                  (range 0 127 16) ; 8 values
-                  ))))
+  (tr-09
+   (c/overlay
+    (c/append (take 16 (cycle [ltom mtom htom mtom])))
+    (c/append (map tom-decay
+                   (map (partial + 15)
+                        (reverse (range 0 127 16)) ; 8 values
+                        )))
+    (c/append (map tom-tune
+                   (range 0 127 16)     ; 8 values
+                   )))))
 
-(def htom-lvl (partial c/cc-event 54))
+(def htom-lvl
+  (partial c/cc-event 54))
 
 (defn stroy [num]
-  (c/overlay (c/append (repeat 8 htom))
-             (c/append (take num (cycle [(ht-tune 127)
-                                         (ht-tune 0)])))
-             (ht-decay 127)
-             ;;four-floor
-             ))
+  (tr-09
+   (c/overlay (c/append (repeat 8 htom))
+              (c/append (take num (cycle [(ht-tune 127)
+                                          (ht-tune 0)])))
+              (ht-decay 127)
+              ;;four-floor
+              )))
 
-(def tom-stroyer (c/append (stroy 8)
-                           (stroy 16)
-                           (stroy 32)
-                           (stroy 64)
-                           (stroy 128)
-                           (stroy 256)))
+(def tom-stroyer
+  (tr-09
+   (c/append (stroy 8)
+             (stroy 16)
+             (stroy 32)
+             (stroy 64)
+             (stroy 128)
+             (stroy 256))))
 
 (def errorize
   (let [rrr (fn [count] (c/append (repeat count kick)))]
-    (c/overlay (c/append (repeat 12 snare))
-               (c/append (rrr 64)
-                         (rrr 128)
-                         (rrr 256)))))
+    (tr-09
+     (c/overlay (c/append (repeat 12 snare))
+                (c/append (rrr 64)
+                          (rrr 128)
+                          (rrr 256))))))
 
 (def staggered
-  (c/overlay four-floor
-             (c/stagger 1/8 (c/append snare snare))
-             (c/stagger 1/32 (c/append chat chat chat chat))))
+  (tr-09 (c/overlay four-floor
+                    (c/stagger 1/8 (c/append snare snare))
+                    (c/stagger 1/32 (c/append chat chat chat chat)))))
 
 (def grungy
-  (c/overlay (c/append (apply c/append (c/append (repeat 12 htom))
-                              (repeat 3 c/nix))
-                       (apply c/append (c/append (repeat 48 htom))
-                              (repeat 3 c/nix)))
-             (c/append (repeat 4 snare))
-             four-floor))
+  (tr-09 (c/overlay (c/append (c/append (c/append (repeat 12 htom))
+                                        (repeat 3 c/nix))
+                              (c/append (c/append (repeat 48 htom))
+                                        (repeat 3 c/nix)))
+                    (c/append (repeat 4 snare))
+                    four-floor)))
 
 (comment
   (play-looping
-   (c/channel
-    0
+   (tb-03
     (c/overlay (c/volume [40 80 120 40 120]
                          (c/append (c/frepeat 6 [(c/note-event 60)
                                                  (c/note-event 62)
@@ -150,16 +164,13 @@
 
 (comment ;; note off events!
   (play-looping
-   (c/channel
-    0
-    (c/overlay (c/note-event 60)
-               (c/stagger 1/2 all-notes-off)
-               ))
+   (tb-03 (c/overlay (c/note-event 60)
+                     (c/stagger 1/2 all-notes-off)))
    bar)
   (stop-looping)
   )
 
-(defn live-all [t dur]
+(defn live-duo [t dur]
   ((c/overlay (tb-03
                (c/overlay (c/volume 64
                                     (c/append (repeat 4 (c/append (c/append (c/frepeat 4 (c/scale 0.1 (c/note-event 40))))
@@ -183,7 +194,7 @@
    t dur))
 
 (comment
-  (play-looping #'live-all (* 4 bar))
+  (play-looping #'live-duo (* 4 bar))
   (play-looping (tb-03 (c/overlay (c/volume 64 (c/append (c/frepeat 32 (c/scale 0.1 (c/note-event 40)))))
                                   (tuning 80)))
                 (* 4 bar))
@@ -215,12 +226,13 @@
 ;; --------------------------------------------------------------------------------
 ;; live
 (defn live-example [t dur]
-  ((c/overlay (c/append (apply c/append (c/append (repeat 12 htom))
-                               (repeat 3 c/nix))
-                        (apply c/append (c/append (repeat 48 htom))
-                               (repeat 3 c/nix)))
-              (c/append (repeat 4 snare))
-              four-floor)
+  ((tr-09
+    (c/overlay (c/append (apply c/append (c/append (repeat 12 htom))
+                                (repeat 3 c/nix))
+                         (apply c/append (c/append (repeat 48 htom))
+                                (repeat 3 c/nix)))
+               (c/append (repeat 4 snare))
+               four-floor))
    t dur))
 
 (comment

@@ -1,22 +1,8 @@
-(ns midilang.gear
-  "DEFINEs various midi note and control events of the Roland TR-09 and TB-03 devices."
-  (:require [midilang.composition :refer :all]))
-
-(defmacro name-note-events [pairs]
-  `(do
-     ~@(map (fn [[name note-num]]
-              `(def ~name (note-event ~note-num)))
-            (partition 2 pairs))))
-
-(defmacro name-cc-events [pairs]
-  `(do
-     ~@(map (fn [[name cc-num]]
-              `(def ~name (partial cc-event ~cc-num)))
-            (partition 2 pairs))))
-
-;; Common MIDI things
-
-(def all-notes-off (cc-event 0x7B 0))
+(ns midilang.gear.tr09
+  "define control events for Roland TR-09 device."
+  (:require [midilang.gear.common :refer [name-note-events
+                                          name-cc-events]]
+            [midilang.composition :refer [overlay]]))
 
 ;; TR-09 Note Events
 (name-note-events
@@ -57,16 +43,3 @@
   (overlay (lt-decay val)
            (mt-decay val)
            (ht-decay val)))
-
-;; TB-03 Control Events
-(name-cc-events
- [env-mod        12 env       12
-  accent-level   16 tb-accent 16
-  overdrive      17
-  delay-time     18
-  delay-feedback 19
-  resonance      71 reso      71 res 71
-  cutoff-freq    74 cutoff    74 cut 74
-  decay          75
-  slide-status   102 slide    102
-  tuning         104 tb-tune  104])
