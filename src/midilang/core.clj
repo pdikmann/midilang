@@ -139,10 +139,10 @@
           ))
 
 (def tom-tuner
-  (overlay (append (ltom-tune 0)
-                   (ltom-tune 40)
-                   (ltom-tune 80)
-                   (ltom-tune 127))
+  (overlay (append (lt-tune 0)
+                   (lt-tune 40)
+                   (lt-tune 80)
+                   (lt-tune 127))
            (volume (append (repeat 4 ltom))
                    127)))
 
@@ -161,9 +161,9 @@
 
 (defn stroy [num]
   (overlay (append (repeat 8 htom))
-           (append (take num (cycle [(htom-tune 127)
-                                     (htom-tune 0)])))
-           (htom-decay 127)
+           (append (take num (cycle [(ht-tune 127)
+                                     (ht-tune 0)])))
+           (ht-decay 127)
            ;;four-floor
            ))
 
@@ -211,9 +211,8 @@
   (play-looping tom-tricks (* 2 bar))
   (play tom-stroyer (* 6 bar))
   (play-looping errorize (* 3 bar))
-  (play-looping #'live-example bar)
-  (play staggered (* 2 bar))
-  (play grungy bar)
+  (play staggered bar)
+  (play-looping (slice grungy 1/2 1/2) bar)
   ;;
   (stop-looping)
   (stop-everything)

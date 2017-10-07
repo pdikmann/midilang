@@ -62,6 +62,17 @@
            (f t dur)
            vols))))
 
+(defn slice [f fractional-t fractional-dur]
+  "select only a particular part of the events, starting at (* FRACTIONAL-T T) running for (* FRACTIONAL-DUR DUR)."
+  (fn [t dur]
+    ;; scale t and dur so that fractional-t and fractional-dur would come out at 0 and dur
+    (let [scaled-dur (* dur (/ 1 fractional-dur))
+          scaled-t (- (* fractional-t scaled-dur))
+          evts (f scaled-t scaled-dur)]
+      (filter #(and (<= 0 (:time %))
+                    (> dur (:time %)))
+              evts))))
+
 ;; combinatory
 (defn- collect [some rest]
   (concat (if (coll? some)
