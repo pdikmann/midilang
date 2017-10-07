@@ -17,7 +17,7 @@
       :cc-value val}]))
 
 (defn break []
-  "currently unused / synonymous with #'nix"
+  "currently unused / synonymous with #'no-event."
   (fn [t dur]
     [{:time t
       :type :break}]))
@@ -87,23 +87,23 @@
            evts))))
 
 ;; combinatory
-(defn- collect [some rest]
-  (concat (if (coll? some)
-            some
-            [some])
-          rest))
+#_(defn- collect [some rest]
+    (concat (if (coll? some)
+              some
+              [some])
+            rest))
 
-(defn overlay [f & more]
+(defn overlay [& rest]
   "overlay a series of events to occur at the same time."
-  (let [fns (collect f more)]
+  (let [fns (flatten rest)]
     (fn [t dur]
       (flatten
        (map #(% t dur)
             fns)))))
 
-(defn append [f & more]
+(defn append [& rest]
   "append a series of events to occur one after another."
-  (let [fns (collect f more)]
+  (let [fns (flatten rest)]
     (fn [t dur]
       (let [dur-fraction (/ dur (count fns))]
         (flatten
