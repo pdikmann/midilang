@@ -29,18 +29,18 @@
 (def nix (no-event))
 
 ;; pre-modifier
-(defn scale [f s]
+(defn scale [s f]
   "scale event to take S * DURATION time, aligned/starting at T."
   (fn [t dur]
     (f t (* dur s))))
 
-(defn scale-r [f s]
+(defn scale-r [s f]
   "scale event to take S * DURATION time, aligned/ending at DURATION."
   (fn [t dur]
     (f (+ t (- dur (* dur s)))
        (* dur s))))
 
-(defn stagger [f s]
+(defn stagger [s f]
   "delay event by S * DURATION time."
   (fn [t dur]
     (f (+ t (* dur s))
@@ -53,7 +53,7 @@
 #_(defn reverse [] nil ;; TODO
     )
 
-(defn volume [f vol]
+(defn volume [vol f]
   (let [vols (if (coll? vol)
                (cycle vol)
                (cycle [vol]))]
@@ -62,7 +62,7 @@
            (f t dur)
            vols))))
 
-(defn slice [f fractional-t fractional-dur]
+(defn slice [fractional-t fractional-dur f]
   "select only a particular part of the events, starting at (* FRACTIONAL-T T) running for (* FRACTIONAL-DUR DUR)."
   (fn [t dur]
     ;; scale t and dur so that fractional-t and fractional-dur would come out at 0 and dur
@@ -72,6 +72,19 @@
       (filter #(and (<= 0 (:time %))
                     (> dur (:time %)))
               evts))))
+
+(defn device [which f]
+  "assign midi output WHICH to all events returned by F."
+  (fn [t dur]
+    (let [evts (f t dur)]
+      (map #(assoc % :midi-output which)
+           evts))))
+
+(defn channel [which f]
+  (fn [t dur]
+    (let [evts (f t dur)]
+      (map #(assoc % :midi-channel which)
+           evts))))
 
 ;; combinatory
 (defn- collect [some rest]
@@ -98,3 +111,12 @@
            ((nth fns i)
             (+ t (* i dur-fraction))
             dur-fraction)))))))
+
+;; helpers
+
+(defn ctake [n coll]
+  (take n (cycle coll)))
+(defn frepeat
+  ([n x] (flatten (repeat n x)))
+  ([x] (flatten (repeat x))))
+

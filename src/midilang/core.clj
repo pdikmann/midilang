@@ -1,3 +1,5 @@
+;; TODO: use both tr and tb, and see how #'device works (note: needs implementation in #'trigger first!)
+
 (ns midilang.core
   (:gen-class)
   (:require [clojure.test :refer :all]
@@ -41,20 +43,27 @@
 (defmethod trigger :note [evt]
   ;; on
   (after (:time evt)
-         #((midi-note-on-2 output 9
+         #((midi-note-on-2 (or (:midi-output evt) output)
+                           (or (:midi-channel evt) 0)
                            (:note-number evt)
                            (:note-velocity evt)))
          pool)
   ;; off
-  (after (+ (:time evt) (:note-duration evt))
-         #((midi-note-on-2 output 9
+  (after ((if (:portamento evt) + -)
+          (+ (:time evt) (:note-duration evt)) 
+          5 ; by default, shave 5ms off note to prevent slurring.
+            ; add 5ms to provoke it for a portamento.
+          )
+         #((midi-note-on-2 (or (:midi-output evt) output)
+                           (or (:midi-channel evt) 0)
                            (:note-number evt)
                            0))
          pool))
 
 (defmethod trigger :control-change [evt]
   (after (:time evt)
-         #((midi-cc output 9
+         #((midi-cc (or (:midi-output evt) output)
+                    (or (:midi-channel evt) 0)
                     (:cc-number evt)
                     (:cc-value evt)))
          pool))
@@ -112,39 +121,35 @@
            (append (repeat 7 chat))))
 
 (def note-dur-test
-  (append (repeat 4 (scale snare 0.001))))
+  (append (repeat 4 (scale 0.001 snare))))
 
 (def weirdo-2
   (overlay four-floor
-           (scale-r (append (repeat 3 snare))
-                    1/2)
-           (append (repeat 2 (scale (append (repeat 3 chat))
-                                    1/3)))))
+           (scale-r 1/2 (append (repeat 3 snare)))
+           (append (repeat 2 (scale 1/3 (append (repeat 3 chat)))))))
 
 (def volume-test
-  (append (volume four-floor 20)
-          (volume four-floor 40)
-          (volume four-floor 80)
-          (volume four-floor 120)))
+  (append (volume 20 four-floor)
+          (volume 40 four-floor)
+          (volume 80 four-floor)
+          (volume 120 four-floor)))
 
 (def volume-spaz
-  (volume (append (repeat 8 four-floor))
-          [40 80 20 120 60 20 90 70]))
+  (volume [40 80 20 120 60 20 90 70]
+          (append (repeat 8 four-floor))))
 
 (def abrubtor
-  (volume (append (repeat 2 (scale (append kick kick) 1/2))
-                  kick kick)
+  (volume [127 10]
           ;;[127 10 127 10 127 127]
-          [127 10]
-          ))
+          (append (repeat 2 (scale (append kick kick) 1/2))
+                  kick kick)))
 
 (def tom-tuner
   (overlay (append (lt-tune 0)
                    (lt-tune 40)
                    (lt-tune 80)
                    (lt-tune 127))
-           (volume (append (repeat 4 ltom))
-                   127)))
+           (volume 127 (append (repeat 4 ltom)))))
 
 (def tom-tricks
   (overlay ;;(append (repeat 2 four-floor))
@@ -183,10 +188,8 @@
 
 (def staggered
   (overlay four-floor
-           (stagger (append snare snare)
-                    1/8)
-           (stagger (append chat chat chat chat)
-                    1/32)))
+           (stagger 1/8 (append snare snare))
+           (stagger 1/32 (append chat chat chat chat))))
 
 (def grungy
   (overlay (append (apply append (append (repeat 12 htom))
@@ -195,6 +198,55 @@
                           (repeat 3 nix)))
            (append (repeat 4 snare))
            four-floor))
+
+(comment
+  (play-looping
+   (channel
+    0
+    (overlay (volume [40 80 120 40 120]
+                     (append (frepeat 6 [(note-event 60)
+                                         (note-event 62)
+                                         (note-event 30)
+                                         (note-event 48)])))
+             (append (ctake 8 (map overdrive [0 80 0 40])))
+             (append (ctake 6 (map delay-feedback [0 20])))
+             (append (map delay-time [0 20]))
+             (append (env-mod 0)
+                     (env-mod 127))))
+   (* 3/2 bar))
+  (stop-everything)
+  )
+
+(comment ;; note off events!
+  (play-looping
+   (channel
+    0
+    (overlay (note-event 60)
+             (stagger 1/2 all-notes-off)
+             ))
+   bar)
+  (stop-looping)
+)
+
+(comment
+  (play-looping
+   (channel
+    0
+    (overlay (volume 64
+                     (append (repeat 4 (append (append (frepeat 4 (scale 0.1 (note-event 40))))
+                                               (append (frepeat 4 (note-event 40)))))))
+             (let [m 80
+                   middle (tuning m)]
+               (append middle middle middle
+                       (append middle
+                               (append (map tuning (range m 60 -4))))))
+             ))
+   (* 4 bar))
+  (play-looping (channel 0 (overlay (volume 64 (append (frepeat 32 (scale 0.1 (note-event 40)))))
+                                    (tuning 80)))
+                (* 4 bar))
+  (stop-looping)
+  )
 
 (comment
   (play four-floor bar)
@@ -212,7 +264,7 @@
   (play tom-stroyer (* 6 bar))
   (play-looping errorize (* 3 bar))
   (play staggered bar)
-  (play-looping (slice grungy 1/2 1/2) bar)
+  (play-looping (slice 1/2 1/2 grungy) bar)
   ;;
   (stop-looping)
   (stop-everything)
