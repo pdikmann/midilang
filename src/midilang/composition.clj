@@ -73,18 +73,20 @@
                     (> dur (:time %)))
               evts))))
 
-(defn device [which f]
-  "assign midi output WHICH to all events returned by F."
+(defn with-channel [which f]
+  (fn [t dur]
+    (let [evts (f t dur)]
+      (map #(assoc % :midi-channel which)
+           evts))))
+
+(defn with-output [which f]
   (fn [t dur]
     (let [evts (f t dur)]
       (map #(assoc % :midi-output which)
            evts))))
 
-(defn channel [which f]
-  (fn [t dur]
-    (let [evts (f t dur)]
-      (map #(assoc % :midi-channel which)
-           evts))))
+(defn with-device [out chan f]
+  (with-output out (with-channel chan f)))
 
 ;; combinatory
 #_(defn- collect [some rest]

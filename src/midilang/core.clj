@@ -5,7 +5,7 @@
   (:require [clojure.test :refer :all]
             [midi :refer :all]
             [overtone.at-at :refer :all]
-            [midilang.composition :refer :all]
+            [midilang.composition :as c]
             [midilang.gear :refer :all])
   (:import
    (javax.sound.midi MidiMessage ShortMessage)))
@@ -34,7 +34,17 @@
 
 (def pool (mk-pool))
 
-(def output (midi-out "Boutique"))
+;; defining a fixed output for both TR-09 and TB-03 is tricky, because
+;; overtone.midi picks them by name, and the name is influenced by
+;; their order of appearance on the USB ports. Long story short,
+;; switch on the TR-09 first!
+(def tr-09-midi-output (midi-out "2"))
+(def tb-03-midi-output (midi-out "3"))
+(def tr-09 (partial c/with-device tr-09-midi-output 9))
+(def tb-03 (partial c/with-device tb-03-midi-output 0))
+
+;; default port is basically "any"
+(def default-output (midi-out "Boutique"))
 
 ;; --------------------------------------------------------------------------------
 ;; player
@@ -43,7 +53,7 @@
 (defmethod trigger :note [evt]
   ;; on
   (after (:time evt)
-         #((midi-note-on-2 (or (:midi-output evt) output)
+         #((midi-note-on-2 (or (:midi-output evt) default-output)
                            (or (:midi-channel evt) 0)
                            (:note-number evt)
                            (:note-velocity evt)))
@@ -52,9 +62,9 @@
   (after ((if (:portamento evt) + -)
           (+ (:time evt) (:note-duration evt)) 
           5 ; by default, shave 5ms off note to prevent slurring.
-            ; add 5ms to provoke it for a portamento.
+                                        ; add 5ms to provoke it for a portamento.
           )
-         #((midi-note-on-2 (or (:midi-output evt) output)
+         #((midi-note-on-2 (or (:midi-output evt) default-output)
                            (or (:midi-channel evt) 0)
                            (:note-number evt)
                            0))
@@ -62,7 +72,7 @@
 
 (defmethod trigger :control-change [evt]
   (after (:time evt)
-         #((midi-cc (or (:midi-output evt) output)
+         #((midi-cc (or (:midi-output evt) default-output)
                     (or (:midi-channel evt) 0)
                     (:cc-number evt)
                     (:cc-value evt)))
@@ -103,147 +113,158 @@
 (def bar (* 4 beat))
 
 (def four-floor
-  ;;(apply append (map note-event (repeat 4 36)))
-  (append (repeat 4 kick)))
+  ;;(apply c/append (map c/note-event (repeat 4 36)))
+  (c/append (repeat 4 kick)))
 
 (def tztztz
-  (overlay four-floor
-           ;;(apply append (map note-event (repeat 16 42)))
-           (append (repeat 16 chat))))
+  (c/overlay four-floor
+             ;;(apply c/append (map c/note-event (repeat 16 42)))
+             (c/append (repeat 16 chat))))
 
 (def btzack
-  (overlay tztztz
-           (append (flatten (repeat 2 [nix snare])))))
+  (c/overlay tztztz
+             (c/append (flatten (repeat 2 [c/nix snare])))))
 
 (def weirdo
-  (overlay four-floor
-           (append (repeat 3 snare))
-           (append (repeat 7 chat))))
+  (c/overlay four-floor
+             (c/append (repeat 3 snare))
+             (c/append (repeat 7 chat))))
 
 (def note-dur-test
-  (append (repeat 4 (scale 0.001 snare))))
+  (c/append (repeat 4 (c/scale 0.001 snare))))
 
 (def weirdo-2
-  (overlay four-floor
-           (scale-r 1/2 (append (repeat 3 snare)))
-           (append (repeat 2 (scale 1/3 (append (repeat 3 chat)))))))
+  (c/overlay four-floor
+             (c/scale-r 1/2 (c/append (repeat 3 snare)))
+             (c/append (repeat 2 (c/scale 1/3 (c/append (repeat 3 chat)))))))
 
 (def volume-test
-  (append (volume 20 four-floor)
-          (volume 40 four-floor)
-          (volume 80 four-floor)
-          (volume 120 four-floor)))
+  (c/append (c/volume 20 four-floor)
+            (c/volume 40 four-floor)
+            (c/volume 80 four-floor)
+            (c/volume 120 four-floor)))
 
 (def volume-spaz
-  (volume [40 80 20 120 60 20 90 70]
-          (append (repeat 8 four-floor))))
+  (c/volume [40 80 20 120 60 20 90 70]
+            (c/append (repeat 8 four-floor))))
 
 (def abrubtor
-  (volume [127 10]
-          ;;[127 10 127 10 127 127]
-          (append (repeat 2 (scale (append kick kick) 1/2))
-                  kick kick)))
+  (c/volume [127 10]
+            ;;[127 10 127 10 127 127]
+            (c/append (repeat 2 (c/scale (c/append kick kick) 1/2))
+                      kick kick)))
 
 (def tom-tuner
-  (overlay (append (lt-tune 0)
-                   (lt-tune 40)
-                   (lt-tune 80)
-                   (lt-tune 127))
-           (volume 127 (append (repeat 4 ltom)))))
+  (c/overlay (c/append (lt-tune 0)
+                       (lt-tune 40)
+                       (lt-tune 80)
+                       (lt-tune 127))
+             (c/volume 127 (c/append (repeat 4 ltom)))))
 
 (def tom-tricks
-  (overlay ;;(append (repeat 2 four-floor))
-   (append (take 16 (cycle [ltom mtom htom mtom])))
-           (append (map tom-decay
-                        (map (partial + 15)
-                             (reverse (range 0 127 16)) ; 8 values
-                             )))
-           (append (map tom-tune
-                        (range 0 127 16) ; 8 values
-                        ))))
+  (c/overlay ;;(c/append (repeat 2 four-floor))
+   (c/append (take 16 (cycle [ltom mtom htom mtom])))
+   (c/append (map tom-decay
+                  (map (partial + 15)
+                       (reverse (range 0 127 16)) ; 8 values
+                       )))
+   (c/append (map tom-tune
+                  (range 0 127 16) ; 8 values
+                  ))))
 
-(def htom-lvl (partial cc-event 54))
+(def htom-lvl (partial c/cc-event 54))
 
 (defn stroy [num]
-  (overlay (append (repeat 8 htom))
-           (append (take num (cycle [(ht-tune 127)
-                                     (ht-tune 0)])))
-           (ht-decay 127)
-           ;;four-floor
-           ))
+  (c/overlay (c/append (repeat 8 htom))
+             (c/append (take num (cycle [(ht-tune 127)
+                                         (ht-tune 0)])))
+             (ht-decay 127)
+             ;;four-floor
+             ))
 
-(def tom-stroyer (append (stroy 8)
-                         (stroy 16)
-                         (stroy 32)
-                         (stroy 64)
-                         (stroy 128)
-                         (stroy 256)))
+(def tom-stroyer (c/append (stroy 8)
+                           (stroy 16)
+                           (stroy 32)
+                           (stroy 64)
+                           (stroy 128)
+                           (stroy 256)))
 
 (def errorize
-  (let [rrr (fn [count] (append (repeat count kick)))]
-    (overlay (append (repeat 12 snare))
-             (append (rrr 64)
-                     (rrr 128)
-                     (rrr 256)))))
+  (let [rrr (fn [count] (c/append (repeat count kick)))]
+    (c/overlay (c/append (repeat 12 snare))
+               (c/append (rrr 64)
+                         (rrr 128)
+                         (rrr 256)))))
 
 (def staggered
-  (overlay four-floor
-           (stagger 1/8 (append snare snare))
-           (stagger 1/32 (append chat chat chat chat))))
+  (c/overlay four-floor
+             (c/stagger 1/8 (c/append snare snare))
+             (c/stagger 1/32 (c/append chat chat chat chat))))
 
 (def grungy
-  (overlay (append (apply append (append (repeat 12 htom))
-                          (repeat 3 nix))
-                   (apply append (append (repeat 48 htom))
-                          (repeat 3 nix)))
-           (append (repeat 4 snare))
-           four-floor))
+  (c/overlay (c/append (apply c/append (c/append (repeat 12 htom))
+                              (repeat 3 c/nix))
+                       (apply c/append (c/append (repeat 48 htom))
+                              (repeat 3 c/nix)))
+             (c/append (repeat 4 snare))
+             four-floor))
 
 (comment
   (play-looping
-   (channel
+   (c/channel
     0
-    (overlay (volume [40 80 120 40 120]
-                     (append (frepeat 6 [(note-event 60)
-                                         (note-event 62)
-                                         (note-event 30)
-                                         (note-event 48)])))
-             (append (ctake 8 (map overdrive [0 80 0 40])))
-             (append (ctake 6 (map delay-feedback [0 20])))
-             (append (map delay-time [0 20]))
-             (append (env-mod 0)
-                     (env-mod 127))))
+    (c/overlay (c/volume [40 80 120 40 120]
+                         (c/append (c/frepeat 6 [(c/note-event 60)
+                                                 (c/note-event 62)
+                                                 (c/note-event 30)
+                                                 (c/note-event 48)])))
+               (c/append (c/ctake 8 (map overdrive [0 80 0 40])))
+               (c/append (c/ctake 6 (map delay-feedback [0 20])))
+               (c/append (map delay-time [0 20]))
+               (c/append (env-mod 0)
+                         (env-mod 127))))
    (* 3/2 bar))
   (stop-everything)
   )
 
 (comment ;; note off events!
   (play-looping
-   (channel
+   (c/channel
     0
-    (overlay (note-event 60)
-             (stagger 1/2 all-notes-off)
-             ))
+    (c/overlay (c/note-event 60)
+               (c/stagger 1/2 all-notes-off)
+               ))
    bar)
   (stop-looping)
-)
+  )
+
+(defn live-all [t dur]
+  ((c/overlay (tb-03
+               (c/overlay (c/volume 64
+                                    (c/append (repeat 4 (c/append (c/append (c/frepeat 4 (c/scale 0.1 (c/note-event 40))))
+                                                                  (c/append (c/frepeat 4 (c/note-event 40)))))))
+                          (let [m 80
+                                middle (tuning m)]
+                            (c/append middle middle middle
+                                      (c/append middle
+                                                (c/append (map tuning (range m 60 -4))))))
+                          ))
+              (tr-09
+               (c/overlay (c/volume 60 (c/append (repeat 16 bd)))
+                          (bd-decay 127)
+                          (c/volume 60 (c/append (repeat 32 sd)))
+                          (c/append (map sd-tone (c/ctake 32 [20 80])))
+                          (sd-tune 127)
+                          (sd-snappy 60)
+                          (c/append (repeat 8 (c/append (repeat 6 c/nix)
+                                                        (repeat 2 ch))))
+                          (ch-level 80))))
+   t dur))
 
 (comment
-  (play-looping
-   (channel
-    0
-    (overlay (volume 64
-                     (append (repeat 4 (append (append (frepeat 4 (scale 0.1 (note-event 40))))
-                                               (append (frepeat 4 (note-event 40)))))))
-             (let [m 80
-                   middle (tuning m)]
-               (append middle middle middle
-                       (append middle
-                               (append (map tuning (range m 60 -4))))))
-             ))
-   (* 4 bar))
-  (play-looping (channel 0 (overlay (volume 64 (append (frepeat 32 (scale 0.1 (note-event 40)))))
-                                    (tuning 80)))
+  (play-looping #'live-all (* 4 bar))
+  (play-looping (tb-03 (c/overlay (c/volume 64 (c/append (c/frepeat 32 (c/scale 0.1 (c/note-event 40)))))
+                                  (tuning 80)))
                 (* 4 bar))
   (stop-looping)
   )
@@ -273,12 +294,12 @@
 ;; --------------------------------------------------------------------------------
 ;; live
 (defn live-example [t dur]
-  ((overlay (append (apply append (append (repeat 12 htom))
-                           (repeat 3 nix))
-                    (apply append (append (repeat 48 htom))
-                           (repeat 3 nix)))
-            (append (repeat 4 snare))
-            four-floor)
+  ((c/overlay (c/append (apply c/append (c/append (repeat 12 htom))
+                               (repeat 3 c/nix))
+                        (apply c/append (c/append (repeat 48 htom))
+                               (repeat 3 c/nix)))
+              (c/append (repeat 4 snare))
+              four-floor)
    t dur))
 
 (comment
