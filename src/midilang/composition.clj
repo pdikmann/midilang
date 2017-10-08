@@ -15,13 +15,6 @@
      (let [sum (+ init (first lst))]
        (recur (rest lst) sum (conj accum init))))))
 
-;; distill/infuse/percolate/decoct
-(comment
-  (defn extract-notes [f] [::note])
-  (defn extract-groove [f] [[::time ::duration]])
-  (defn apply-notes [notes f] (fn [t dur] nil))
-  (defn apply-groove [groove f] (fn [t dur] nil)))
-
 ;; elementary
 (defn note-event [note]
   (fn [t dur]
@@ -64,6 +57,21 @@
                 ((note-event 60) start duration))
               ts-actual
               durs-actual))))))
+
+(defn notes [nums]
+  (let [total (count nums)
+        frac (partial * (/ 1 total))]
+    (fn [t dur]
+      (let [note-times (map (comp (partial + t) frac)
+                            (range total))
+            note-duration (frac dur)]
+        (flatten
+         (map (fn [note time]
+                ((note-event note)
+                 time
+                 note-duration))
+              nums
+              note-times))))))
 
 ;; pre-modifier
 (defn mute [& rest]
@@ -155,4 +163,9 @@
             (+ t (* i dur-fraction))
             dur-fraction)))))))
 
-
+;; distill/infuse/percolate/decoct
+(comment
+  (defn extract-notes [f] [::note])
+  (defn extract-groove [f] [[::time ::duration]])
+  (defn apply-notes [notes f] (fn [t dur] nil))
+  (defn apply-groove [groove f] (fn [t dur] nil)))
