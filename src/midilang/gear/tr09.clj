@@ -16,7 +16,7 @@
   chat  42 ch 42
   ohat  46 oh 46
   crash 49 cr 49 cc 49
-  ride  51 rd 51 rc 49])
+  ride  51 rd 51 rc 51])
 
 ;; TR-09 Control Events
 (name-cc-events
