@@ -10,7 +10,8 @@
                                            stop-everything]]
             [midilang.composition :as c]
             [midilang.gear.tr09 :refer :all]
-            [midilang.gear.tb03 :refer :all]))
+            [midilang.gear.tb03 :refer :all]
+            [midilang.gear.common :refer [all-notes-off]]))
 
 (defn -main
   [& args]
@@ -33,6 +34,28 @@
 (def bpm 136)
 (def beat (/ (* 60 1000) bpm))
 (def bar (* 4 beat))
+
+(def pitch-on (partial c/transfer-pitches (c/notes [20 20 23 22 40 48 32 38])))
+
+(defn live [t dur]
+  ((c/overlay (tb-03
+               ;; (c/transfer-pitches (c/notes [20 32 24 34 60 48])
+               ;;                     (c/rythm [2 1 1 1 1 2 1 1 1 2 1 1 1]))
+               (pitch-on ;; (c/rythm [2 1 1 2 1 2 1 3 1 1 1])
+                (c/rythm [4 1 2 1 4 1 2 1])
+                )
+               )
+              (tr-09 (c/transfer-pitches (c/append bd bd rs sd ch ch cp rs cc rc)
+                                         (c/rythm [1 1 2 1 2 1 2 1 2 3]))))
+   t dur))
+
+(comment
+  (play-looping #'live bar)
+  (do (stop-everything)
+      (play (c/overlay (tb-03 all-notes-off)
+                       (tr-09 all-notes-off))
+            100))
+  )
 
 (def four-floor
   (tr-09
@@ -226,13 +249,15 @@
 ;; --------------------------------------------------------------------------------
 ;; live
 (defn live-example [t dur]
-  ((tr-09
-    (c/overlay (c/append (apply c/append (c/append (repeat 12 htom))
-                                (repeat 3 c/nix))
-                         (apply c/append (c/append (repeat 48 htom))
-                                (repeat 3 c/nix)))
-               (c/append (repeat 4 snare))
-               four-floor))
+  ((c/overlay (tr-09
+               (c/overlay (c/append (apply c/append (c/append (repeat 12 htom))
+                                           (repeat 3 c/nix))
+                                    (apply c/append (c/append (repeat 48 htom))
+                                           (repeat 3 c/nix)))
+                          (c/append (repeat 4 snare))
+                          four-floor))
+              (tb-03
+               (c/notes [60 70 80 40])))
    t dur))
 
 (comment

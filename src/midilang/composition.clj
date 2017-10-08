@@ -62,7 +62,7 @@
   (let [total (count nums)
         frac (partial * (/ 1 total))]
     (fn [t dur]
-      (let [note-times (map (comp (partial + t) frac)
+      (let [note-times (map (comp (partial + t) (partial frac dur))
                             (range total))
             note-duration (frac dur)]
         (flatten
@@ -169,3 +169,29 @@
   (defn extract-groove [f] [[::time ::duration]])
   (defn apply-notes [notes f] (fn [t dur] nil))
   (defn apply-groove [groove f] (fn [t dur] nil)))
+
+(defn- extract-pitches [f]
+  (let [evts (f 0 1)]
+    (for [e evts
+          :when (= (:type e) :note)]
+      (:note-number e))))
+
+(defn transfer-pitches [from to]
+  (fn [t dur]
+    (let [evts (to t dur)
+          pitches (cycle (extract-pitches from))]
+      (loop [es evts
+             ps pitches
+             accum []]
+        (let [e (first es)
+              p (first ps)]
+          (cond (empty? e)
+                accum
+                (= (:type e) :note)
+                (recur (rest es)
+                       (rest ps)
+                       (conj accum (assoc e :note-number p)))
+                :else
+                (recur (rest es)
+                       (rest ps)
+                       (conj accum e))))))))
