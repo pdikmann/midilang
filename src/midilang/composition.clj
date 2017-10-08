@@ -1,5 +1,27 @@
 (ns midilang.composition)
 
+;; helpers
+(defn ctake [n coll]
+  (take n (cycle coll)))
+(defn frepeat
+  ([n x] (flatten (repeat n x)))
+  ([x] (flatten (repeat x))))
+
+(defn- step-reduce
+  ([lst] (step-reduce lst 0 []))
+  ([lst init accum]
+   (if (empty? lst)
+     accum
+     (let [sum (+ init (first lst))]
+       (recur (rest lst) sum (conj accum init))))))
+
+;; distill/infuse/percolate/decoct
+(comment
+  (defn extract-notes [f] [::note])
+  (defn extract-groove [f] [[::time ::duration]])
+  (defn apply-notes [notes f] (fn [t dur] nil))
+  (defn apply-groove [groove f] (fn [t dur] nil)))
+
 ;; elementary
 (defn note-event [note]
   (fn [t dur]
@@ -28,6 +50,21 @@
 
 (def nix (no-event))
 
+;; complex
+(defn rythm [durs]
+  (let [total (reduce + 0 durs)
+        frac (partial * (/ 1 total))
+        durs-1 (map frac durs)
+        ts-1 (map frac (step-reduce durs))]
+    (fn [t dur]
+      (let [ts-actual (map (comp (partial + t) (partial * dur)) ts-1)
+            durs-actual (map (partial * dur) durs-1)]
+        (flatten
+         (map (fn [start duration]
+                ((note-event 60) start duration))
+              ts-actual
+              durs-actual))))))
+
 ;; pre-modifier
 (defn mute [& rest]
   (fn [t dur]
@@ -54,9 +91,6 @@
     )
 
 ;; post-modifier
-#_(defn reverse [] nil ;; TODO
-    )
-
 (defn volume [vol f]
   (let [vols (if (coll? vol)
                (cycle vol)
@@ -92,6 +126,9 @@
 (defn with-device [out chan f]
   (with-output out (with-channel chan f)))
 
+#_(defn reverse [] nil ;; TODO
+    )
+
 ;; combinatory
 #_(defn- collect [some rest]
     (concat (if (coll? some)
@@ -118,11 +155,4 @@
             (+ t (* i dur-fraction))
             dur-fraction)))))))
 
-;; helpers
-
-(defn ctake [n coll]
-  (take n (cycle coll)))
-(defn frepeat
-  ([n x] (flatten (repeat n x)))
-  ([x] (flatten (repeat x))))
 
