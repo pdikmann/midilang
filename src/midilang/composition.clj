@@ -58,6 +58,7 @@
               ts-actual
               durs-actual))))))
 
+(declare put-breaks)
 (defn rythm2 [durs]
   "allows to write [1 2 [3] 4 [5]] and expect a rythm where index 2
   and 4 are BREAKs (instead of NOTEs). limitations: only 1 break per
@@ -75,7 +76,7 @@
                                     break-indices)
               (vector? head) (recur (rest durs) (inc i) (conj pass-thru (first head))
                                     (conj break-indices i)))))]
-    (rythm durs)))
+    (put-breaks breaks (rythm durs))))
 
 (defn notes [nums]
   (let [total (count nums)
@@ -91,6 +92,12 @@
                  note-duration))
               nums
               note-times))))))
+
+(declare transfer-pitches)
+(defn melody [nts rthm]
+  (transfer-pitches
+   (notes nts)
+   (rythm2 rthm)))
 
 ;; pre-modifier
 (defn mute [& rest]
@@ -137,6 +144,16 @@
       (filter #(and (<= 0 (:time %))
                     (> dur (:time %)))
               evts))))
+
+(defn put-breaks [indices f]
+  "sets :type of all events at INDICES to :break"
+  (let [index-set (set indices)]
+    (fn [t dur]
+      (let [evts (f t dur)]
+        (for [i (range (count evts))]
+          (if (index-set i)
+            (assoc (nth evts i) :type :break)
+            (nth evts i)))))))
 
 (defn with-channel [which f]
   (fn [t dur]
@@ -210,10 +227,9 @@
           :when (= (:type e) :note)]
       (:note-number e))))
 
-(defn transfer-pitches [from to]
+(defn apply-pitches [pitches f]
   (fn [t dur]
-    (let [evts (to t dur)
-          pitches (cycle (extract-pitches from))]
+    (let [evts (f t dur)]
       (loop [es evts
              ps pitches
              accum []]
@@ -229,3 +245,8 @@
                 (recur (rest es)
                        ps
                        (conj accum e))))))))
+
+(defn transfer-pitches [from to]
+  (fn [t dur]
+    (let [pitches (cycle (extract-pitches from))]
+      ((apply-pitches pitches to) t dur))))

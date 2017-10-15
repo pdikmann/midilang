@@ -22,7 +22,7 @@
 ;; their order of appearance on the USB ports. Long story short,
 ;; switch on the TR-09 first!
 (def tr-09-midi-output (midi-out "2"))
-(def tb-03-midi-output (midi-out "3"))
+(def tb-03-midi-output (midi-out "2")) ;; 3
 (set-default-output! (midi-out "Boutique")) ;; aka "any, please"
 
 (def tr-09 (partial c/with-device tr-09-midi-output 9))
@@ -37,6 +37,10 @@
 
 ;; (make-melody "eggplant")
 (comment
+  (c/melody [:a :maj]
+            [1 1 1 3 2 4 5 5 6 1 9 7]
+            ;;[1 1 (o3 1) (-o 3) (o--- 8 7 9) (f 3) (s 2xo
+            [1 1 2 1 1 2 1 1 2 1 1 2])
   (rythm [1 1 1 :b 2 :b2 1 1])
   (rythm (flatten [(repeat 8 1/4) 1 (b 1 1/4) (+ 1 3/4) 2])))
 
@@ -49,7 +53,7 @@
                ;;                     (c/rythm [2 1 1 1 1 2 1 1 1 2 1 1 1]))
                (c/overlay (pitch-on ;; (c/rythm [2 1 1 2 1 2 1 3 1 1 1])
                            (c/rythm [1 1 1 1 1 2 1/2 1/2]))
-                          //(tuning 64)
+                          (tuning 64)
                           (c/mute (c/append (tuning 60)
                                             (c/append (map tuning (range 120 60 -4)))
                                             (repeat 2 (tuning 60))
@@ -59,8 +63,41 @@
                                          (c/rythm [1 1 2 1 2 1 2 1 2 3]))))
    t dur))
 
+(def a-melody (c/melody [40 30 30 38 52]
+                        [1 [1/2] 3 [1/2] 3 [1] 2 1]))
+
+
+(defn rec-append [n]
+  (if (= n 0)
+    (c/append (c/note-event 60))
+    (c/append (c/note-event 60) (rec-append (dec n)))))
+
+(def bounce (c/transfer-pitches (c/notes [40 50 60])
+                                (rec-append 9)))
+
+(def jitterbug (c/append (map c/scale
+                              (range 1 1/16 -1/32)
+                              (map c/note-event
+                                   (repeat 32 60)))))
+
+(defn live2 [t dur]
+  ((tb-03 (c/overlay (c/put-breaks [3 5 10 12 18 20 26 28]
+                                   (c/transfer-pitches
+                                    (c/notes [60 72 68 64])
+                                    (c/append
+                                     (map c/scale
+                                          (cycle [1/4 1/3 1/2 2/3 3/4])
+                                          (map c/note-event
+                                               (repeat 16 60))))))
+                     (c/append (tuning 60)
+                               (tuning 64)
+                               (tuning 68))
+                     (c/append (repeat 2 [(delay-feedback 0)
+                                          (delay-feedback 60)]))))
+   t dur))
+
 (comment
-  (play-looping #'live bar)
+  (play-looping #'live2 bar)
   (do (stop-everything)
       (play (c/overlay (tb-03 all-notes-off)
                        (tr-09 all-notes-off))
