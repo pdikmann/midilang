@@ -58,6 +58,25 @@
               ts-actual
               durs-actual))))))
 
+(defn rythm2 [durs]
+  "allows to write [1 2 [3] 4 [5]] and expect a rythm where index 2
+  and 4 are BREAKs (instead of NOTEs). limitations: only 1 break per
+  vector."
+  (let [{:keys [durs breaks]}
+        (loop [durs durs
+               i 0
+               pass-thru []
+               break-indices []]
+          (let [head (first durs)]
+            (cond
+              (nil? head) {:durs pass-thru
+                           :breaks break-indices}
+              (number? head) (recur (rest durs) (inc i) (conj pass-thru head)
+                                    break-indices)
+              (vector? head) (recur (rest durs) (inc i) (conj pass-thru (first head))
+                                    (conj break-indices i)))))]
+    (rythm durs)))
+
 (defn notes [nums]
   (let [total (count nums)
         frac (partial * (/ 1 total))]
@@ -153,7 +172,8 @@
             fns)))))
 
 (defn append [& rest]
-  "append a series of events to occur one after another."
+  "append a series of events to occur one after another. takes care
+  that the result runs from T for DUR."
   (let [fns (flatten rest)]
     (fn [t dur]
       (let [dur-fraction (/ dur (count fns))]
@@ -162,6 +182,20 @@
            ((nth fns i)
             (+ t (* i dur-fraction))
             dur-fraction)))))))
+
+(defn glue! [& rest]
+  "glues a series of events (like append), but starts them at
+  T+((n-1)DUR): the first at T, the second at T+DUR, the third at
+  T+2*DUR etc. the result no longer runs from T to DUR!"
+  (let [fns (flatten rest)
+        c (count fns)]
+    (fn [t dur]
+      (flatten
+       (cons {:duration-notice (* c dur)}) ;; FIXME :duration-notice isn't interpreted by anyone yet.
+       (for [i (range c)]
+         ((nth fns i)
+          (+ t (* i dur))
+          dur))))))
 
 ;; distill/infuse/percolate/decoct
 (comment
@@ -193,5 +227,5 @@
                        (conj accum (assoc e :note-number p)))
                 :else
                 (recur (rest es)
-                       (rest ps)
+                       ps
                        (conj accum e))))))))

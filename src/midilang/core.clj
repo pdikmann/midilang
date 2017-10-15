@@ -35,15 +35,25 @@
 (def beat (/ (* 60 1000) bpm))
 (def bar (* 4 beat))
 
-(def pitch-on (partial c/transfer-pitches (c/notes [20 20 23 22 40 48 32 38])))
+;; (make-melody "eggplant")
+(comment
+  (rythm [1 1 1 :b 2 :b2 1 1])
+  (rythm (flatten [(repeat 8 1/4) 1 (b 1 1/4) (+ 1 3/4) 2])))
+
+
+(def pitch-on (partial c/transfer-pitches (c/notes (map (partial + 24) [20 20 23 22 40 48 32 38]))))
 
 (defn live [t dur]
   ((c/overlay (tb-03
                ;; (c/transfer-pitches (c/notes [20 32 24 34 60 48])
                ;;                     (c/rythm [2 1 1 1 1 2 1 1 1 2 1 1 1]))
-               (pitch-on ;; (c/rythm [2 1 1 2 1 2 1 3 1 1 1])
-                (c/rythm [4 1 2 1 4 1 2 1])
-                )
+               (c/overlay (pitch-on ;; (c/rythm [2 1 1 2 1 2 1 3 1 1 1])
+                           (c/rythm [1 1 1 1 1 2 1/2 1/2]))
+                          //(tuning 64)
+                          (c/mute (c/append (tuning 60)
+                                            (c/append (map tuning (range 120 60 -4)))
+                                            (repeat 2 (tuning 60))
+                                            (c/append (map tuning (range 60 120 4))))))
                )
               (tr-09 (c/transfer-pitches (c/append bd bd rs sd ch ch cp rs cc rc)
                                          (c/rythm [1 1 2 1 2 1 2 1 2 3]))))
