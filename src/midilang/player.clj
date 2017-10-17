@@ -24,11 +24,9 @@
 
 (def pool (mk-pool))
 
-;; default port is basically "any"
 (def default-output nil)
 
 (defn set-default-output! [which]
-  ;; FIXME #'set! won't let me change root bindings. #'bindings and #'push-root-bindings are overpowered considering there's only one thread here. why on earth does #'def work here?
   (def default-output which))
 
 ;; --------------------------------------------------------------------------------
@@ -44,11 +42,14 @@
                            (:note-velocity evt)))
          pool)
   ;; off
-  (after ((if (:portamento evt) + -)
-          (+ (:time evt) (:note-duration evt)) 
-          5 ; by default, shave 5ms off note to prevent slurring.
-                                        ; add 5ms to provoke it for a portamento.
-          )
+  (after (+
+          (+ (:time evt)
+             (:note-duration evt))
+          (cond
+            (:portamento evt) 5 ; add 5ms to provoke it for a portamento.
+            (:precise-duration evt) 0
+            :else -5 ; shave 5ms off note to prevent slurring (default).
+            ))
          #((midi-note-on-2 (or (:midi-output evt) default-output)
                            (or (:midi-channel evt) 0)
                            (:note-number evt)
@@ -91,3 +92,11 @@
   (stop-looping)
   (stop-and-reset-pool! pool :strategy :kill)
   nil)
+
+(defn play-pattern [pattern]
+  (play (:content pattern)
+        (:duration pattern)))
+
+(defn loop-pattern [pattern]
+  (play-looping (:content pattern)
+                (:duration pattern)))

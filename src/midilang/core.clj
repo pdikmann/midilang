@@ -22,7 +22,7 @@
 ;; their order of appearance on the USB ports. Long story short,
 ;; switch on the TR-09 first!
 (def tr-09-midi-output (midi-out "2"))
-(def tb-03-midi-output (midi-out "2")) ;; 3
+(def tb-03-midi-output (midi-out "3"))
 (set-default-output! (midi-out "Boutique")) ;; aka "any, please"
 
 (def tr-09 (partial c/with-device tr-09-midi-output 9))

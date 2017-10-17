@@ -29,7 +29,7 @@
   rs-tune      55 rs-decay  56 rs-level  57
   hc-tune      58 hc-decay  59 hc-level  60
   ch-tune      61 ch-decay  62 ch-level  63
-  total-accent 71 accent    71 tr-accent 71
+  total-accent 71 accent    71
   oh-tune      80 oh-decay  81 oh-level  82
   cc-tune      83 cc-decay  84 cc-level  85
   rc-tune      86 rc-decay  87 rc-level  88])
